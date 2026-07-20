@@ -55,9 +55,16 @@ export function strOrUnd(node: XmlNode): string | undefined {
   if (!node && node !== 0) {
     return undefined;
   }
+  // Repeated elements parse to an array; take the first occurrence.
+  if (Array.isArray(node)) {
+    return strOrUnd(node[0]);
+  }
   if (typeof node === 'object') {
+    // An element with attributes but no content (e.g.
+    // <cbc:Note languageID="da"/>) parses to an object without '#text';
+    // treat it as absent instead of failing the whole document.
     if (typeof node['#text'] === 'undefined') {
-      throw new Error('Invalid node');
+      return undefined;
     }
     return node['#text'].toString();
   }
