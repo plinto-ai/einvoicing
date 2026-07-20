@@ -2142,6 +2142,31 @@ describe('UblReader', () => {
         },
       });
     });
+
+    test('oioubl-prefixed-root.xml', async () => {
+      // OIOUBL documents may carry a namespace prefix on the root element
+      // (<urn:Invoice>); the reader should match the root by local name.
+      const result = await ublReader.readFromFile(
+        'tests/files/oioubl-prefixed-root.xml',
+      );
+      expect(result.toPrimitive()).toMatchObject({
+        id: new DocumentId('TEST-PR-001'),
+        issueDate: DateOnly.create('2026-06-30'),
+        dueDate: DateOnly.create('2026-07-30'),
+        currency: CurrencyCode.create('DKK'),
+      });
+      expect(result.seller?.tradingName).toBe('Nordic Key Systems A/S');
+      expect(result.buyer?.tradingName).toBe('Owners Association Test Park');
+      expect(result.lines).toHaveLength(1);
+    });
+
+    test('throws a descriptive error for non-UBL root elements', async () => {
+      await expect(
+        ublReader.read('<ApplicationResponse></ApplicationResponse>'),
+      ).rejects.toThrow(
+        'Unsupported document type: root element is not a UBL Invoice or CreditNote',
+      );
+    });
   });
 
   test('periodFromXmlNode', async () => {
