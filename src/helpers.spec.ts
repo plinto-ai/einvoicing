@@ -11,14 +11,23 @@ describe('helpers', () => {
     expect(strOrUnd(null)).toBe(undefined);
     expect(strOrUnd(undefined)).toBe(undefined);
     expect(strOrUnd({ '#text': 'test' })).toBe('test');
-    expect(() => strOrUnd({})).toThrow('Invalid node');
+    // An element with attributes but no content parses to an object
+    // without '#text'; it should read as absent.
+    expect(strOrUnd({})).toBe(undefined);
+    expect(strOrUnd({ attr_languageID: 'da' })).toBe(undefined);
+    // Repeated elements parse to an array; the first occurrence wins.
+    expect(strOrUnd([{ '#text': 'first' }, { '#text': 'second' }])).toBe(
+      'first',
+    );
+    expect(strOrUnd(['first', 'second'])).toBe('first');
+    expect(strOrUnd([])).toBe(undefined);
   });
 
   test('numOrUnd', () => {
     expect(numOrUnd(null)).toBe(undefined);
     expect(numOrUnd(undefined)).toBe(undefined);
     expect(numOrUnd({ '#text': '1' })).toBe(1);
-    expect(() => strOrUnd({})).toThrow('Invalid node');
+    expect(numOrUnd({})).toBe(undefined);
   });
 
   test('getArray', () => {
