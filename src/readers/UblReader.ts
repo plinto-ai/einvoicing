@@ -80,11 +80,26 @@ export default class UblReader extends AbstractReader {
     };
     const parser = new XMLParser(options);
     const json = parser.parse(content);
-    const documentType = json.Invoice
+    // The root element may carry a namespace prefix (e.g. <urn:Invoice> in
+    // OIOUBL documents); match on the local name.
+    const rootKeys = Object.keys(json);
+    const invoiceRootKey = rootKeys.find(
+      (key) => key === 'Invoice' || key.endsWith(':Invoice'),
+    );
+    const creditNoteRootKey = rootKeys.find(
+      (key) => key === 'CreditNote' || key.endsWith(':CreditNote'),
+    );
+    if (!invoiceRootKey && !creditNoteRootKey) {
+      throw new Error(
+        'Unsupported document type: root element is not a UBL Invoice or CreditNote',
+      );
+    }
+    const documentType = invoiceRootKey
       ? DocumentTypes.Invoice
       : DocumentTypes.CreditNote;
-    const documentNode =
-      documentType === DocumentTypes.Invoice ? json.Invoice : json.CreditNote;
+    const documentNode = invoiceRootKey
+      ? json[invoiceRootKey]
+      : json[creditNoteRootKey];
 
     const xmlNamespaces = Object.keys(documentNode)
       .filter((key) => key.startsWith('attr_xmlns'))
