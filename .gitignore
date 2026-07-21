@@ -9,8 +9,8 @@ node_modules/
 # Coverage
 coverage
 
-# Transpiled files
-build/
+# Transpiled files are committed on this branch so the package can be
+# installed directly from git without running build scripts.
 
 # VS Code
 .vscode
