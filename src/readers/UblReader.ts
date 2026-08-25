@@ -9,7 +9,7 @@ import { X2jOptions, XMLParser } from 'fast-xml-parser';
 import AbstractReader from './AbstractReader';
 import Document from '../entity/Document';
 import { getRuleset } from '../index';
-import { DocumentId, DocumentTypes } from '../interface/IDocument';
+import { DocumentId, DocumentTypes, ParseIssue } from '../interface/IDocument';
 import DateOnly from '../valueObject/DateOnly';
 import DocumentType from '../valueObject/DocumentType';
 import CurrencyCode from '../valueObject/CurrencyCode';
@@ -46,7 +46,36 @@ import TaxRegistration from '../valueObject/TaxRegistration';
  * @link https://docs.peppol.eu/poacc/billing/3.0/2024-Q2/syntax/ubl-invoice/tree/
  */
 export default class UblReader extends AbstractReader {
+  // Non-fatal problems collected during the current read() call. An invalid
+  // value is omitted from the result (never guessed) and recorded here, so a
+  // partially readable document still parses; see Document.issues.
+  private issues: ParseIssue[] = [];
+
+  // Parse an xsd:date, tolerating invalid values: the field is dropped and
+  // the problem recorded as an issue instead of failing the whole document
+  // (day-first dates like 30-07-2026 occur in real-world OIOUBL).
+  private dateOrIssue(
+    value: string | number | undefined,
+    field: string,
+  ): DateOnly | undefined {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    try {
+      return DateOnly.create(String(value));
+    } catch {
+      this.issues.push({
+        code: 'invalid-date',
+        field,
+        raw: String(value),
+        message: `Invalid date "${value}" in ${field}; field omitted`,
+      });
+      return undefined;
+    }
+  }
+
   async read(content: string): Promise<Document> {
+    this.issues = [];
     const attributeValueProcessor = (name: string, value: string) => {
       switch (name) {
         case 'schemeID': {
@@ -157,9 +186,10 @@ export default class UblReader extends AbstractReader {
         const node = reference['cac:InvoiceDocumentReference'];
         return InvoiceReference.create({
           id: node['cbc:ID'],
-          issueDate: node['cbc:IssueDate']
-            ? DateOnly.create(node['cbc:IssueDate'])
-            : undefined,
+          issueDate: this.dateOrIssue(
+            node['cbc:IssueDate'],
+            'cac:BillingReference/cbc:IssueDate',
+          ),
         });
       },
     );
@@ -205,9 +235,10 @@ export default class UblReader extends AbstractReader {
         : new DocumentId(),
 
       // BT-2: Issue date
-      issueDate: documentNode['cbc:IssueDate']
-        ? DateOnly.create(documentNode['cbc:IssueDate'])
-        : undefined,
+      issueDate: this.dateOrIssue(
+        documentNode['cbc:IssueDate'],
+        'cbc:IssueDate',
+      ),
 
       // BT-3: Invoice type code
       type: type ? DocumentType.create(type) : undefined,
@@ -225,10 +256,15 @@ export default class UblReader extends AbstractReader {
         : undefined,
 
       // BT-7: Tax point date
-      taxPointDate: taxPointDate ? DateOnly.create(taxPointDate) : undefined,
+      taxPointDate: this.dateOrIssue(taxPointDate, 'cbc:TaxPointDate'),
 
       // BT-9: Due date
-      dueDate: dueDate ? DateOnly.create(dueDate) : undefined,
+      dueDate: this.dateOrIssue(
+        dueDate,
+        documentNode['cbc:DueDate']
+          ? 'cbc:DueDate'
+          : 'cac:PaymentMeans/cbc:PaymentDueDate',
+      ),
 
       // BT-10: Buyer reference
       buyerReference: strOrUnd(documentNode['cbc:BuyerReference']),
@@ -318,6 +354,8 @@ export default class UblReader extends AbstractReader {
       taxes: taxes.length ? taxes : undefined,
 
       xmlNamespaces,
+
+      issues: this.issues.length ? this.issues : undefined,
     });
     return document;
   }
@@ -393,9 +431,10 @@ export default class UblReader extends AbstractReader {
       name: strOrUnd(
         node['cac:DeliveryParty']?.['cac:PartyName']?.['cbc:Name'],
       ),
-      date: node['cbc:ActualDeliveryDate']
-        ? DateOnly.create(node['cbc:ActualDeliveryDate'])
-        : undefined,
+      date: this.dateOrIssue(
+        node['cbc:ActualDeliveryDate'],
+        'cac:Delivery/cbc:ActualDeliveryDate',
+      ),
       locationId: nodeToId(node['cac:DeliveryLocation']?.['cbc:ID']),
       address: this.addressFromXmlNode(
         node['cac:DeliveryAddress'] ??
@@ -534,8 +573,11 @@ export default class UblReader extends AbstractReader {
     const periodEnd = node['cac:InvoicePeriod']?.['cbc:EndDate'];
 
     return {
-      periodStart: periodStart ? DateOnly.create(periodStart) : undefined,
-      periodEnd: periodEnd ? DateOnly.create(periodEnd) : undefined,
+      periodStart: this.dateOrIssue(
+        periodStart,
+        'cac:InvoicePeriod/cbc:StartDate',
+      ),
+      periodEnd: this.dateOrIssue(periodEnd, 'cac:InvoicePeriod/cbc:EndDate'),
     };
   }
 
