@@ -43,14 +43,40 @@ var TaxRegistration_1 = tslib_1.__importDefault(require("../valueObject/TaxRegis
 var UblReader = /** @class */ (function (_super) {
     tslib_1.__extends(UblReader, _super);
     function UblReader() {
-        return _super !== null && _super.apply(this, arguments) || this;
+        var _this = _super !== null && _super.apply(this, arguments) || this;
+        // Non-fatal problems collected during the current read() call. An invalid
+        // value is omitted from the result (never guessed) and recorded here, so a
+        // partially readable document still parses; see Document.issues.
+        _this.issues = [];
+        return _this;
     }
+    // Parse an xsd:date, tolerating invalid values: the field is dropped and
+    // the problem recorded as an issue instead of failing the whole document
+    // (day-first dates like 30-07-2026 occur in real-world OIOUBL).
+    UblReader.prototype.dateOrIssue = function (value, field) {
+        if (value === undefined || value === null || value === '') {
+            return undefined;
+        }
+        try {
+            return DateOnly_1.default.create(String(value));
+        }
+        catch (_a) {
+            this.issues.push({
+                code: 'invalid-date',
+                field: field,
+                raw: String(value),
+                message: "Invalid date \"".concat(value, "\" in ").concat(field, "; field omitted"),
+            });
+            return undefined;
+        }
+    };
     UblReader.prototype.read = function (content) {
         return tslib_1.__awaiter(this, void 0, void 0, function () {
             var attributeValueProcessor, tagValueProcessor, options, parser, json, rootKeys, invoiceRootKey, creditNoteRootKey, documentType, documentNode, xmlNamespaces, customizationId, ruleset, taxNodes, taxes, dueDate, type, taxPointDate, invoiceReferences, precedingInvoiceReference, attachmentNodes, attachments, lines, charges, document;
             var _this = this;
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             return tslib_1.__generator(this, function (_o) {
+                this.issues = [];
                 attributeValueProcessor = function (name, value) {
                     switch (name) {
                         case 'schemeID': {
@@ -126,9 +152,7 @@ var UblReader = /** @class */ (function (_super) {
                     var node = reference['cac:InvoiceDocumentReference'];
                     return InvoiceReference_1.default.create({
                         id: node['cbc:ID'],
-                        issueDate: node['cbc:IssueDate']
-                            ? DateOnly_1.default.create(node['cbc:IssueDate'])
-                            : undefined,
+                        issueDate: _this.dateOrIssue(node['cbc:IssueDate'], 'cac:BillingReference/cbc:IssueDate'),
                     });
                 });
                 attachmentNodes = (0, helpers_1.getArray)(documentNode, [
@@ -164,9 +188,7 @@ var UblReader = /** @class */ (function (_super) {
                         ? new IDocument_1.DocumentId(documentNode['cbc:ID'].toString())
                         : new IDocument_1.DocumentId(), 
                     // BT-2: Issue date
-                    issueDate: documentNode['cbc:IssueDate']
-                        ? DateOnly_1.default.create(documentNode['cbc:IssueDate'])
-                        : undefined, 
+                    issueDate: this.dateOrIssue(documentNode['cbc:IssueDate'], 'cbc:IssueDate'), 
                     // BT-3: Invoice type code
                     type: type ? DocumentType_1.default.create(type) : undefined, 
                     // BT-5: Invoice currency code
@@ -178,9 +200,11 @@ var UblReader = /** @class */ (function (_super) {
                         ? CurrencyCode_1.default.create((0, helpers_1.strOrUnd)(documentNode['cbc:TaxCurrencyCode']))
                         : undefined, 
                     // BT-7: Tax point date
-                    taxPointDate: taxPointDate ? DateOnly_1.default.create(taxPointDate) : undefined, 
+                    taxPointDate: this.dateOrIssue(taxPointDate, 'cbc:TaxPointDate'), 
                     // BT-9: Due date
-                    dueDate: dueDate ? DateOnly_1.default.create(dueDate) : undefined, 
+                    dueDate: this.dateOrIssue(dueDate, documentNode['cbc:DueDate']
+                        ? 'cbc:DueDate'
+                        : 'cac:PaymentMeans/cbc:PaymentDueDate'), 
                     // BT-10: Buyer reference
                     buyerReference: (0, helpers_1.strOrUnd)(documentNode['cbc:BuyerReference']), 
                     // BT-12: Contract reference
@@ -220,7 +244,7 @@ var UblReader = /** @class */ (function (_super) {
                     // BT-114: Rounding amount
                     roundingAmount: (0, helpers_1.numOrUnd)((_m = documentNode['cac:LegalMonetaryTotal']) === null || _m === void 0 ? void 0 : _m['cbc:PayableRoundingAmount']), lines: lines.map(function (line) {
                         return _this.documentLineFromXmlNode(line, documentType, taxes);
-                    }), payment: this.paymentFromXmlNode(documentNode), charges: charges.length ? charges : undefined, taxes: taxes.length ? taxes : undefined, xmlNamespaces: xmlNamespaces }));
+                    }), payment: this.paymentFromXmlNode(documentNode), charges: charges.length ? charges : undefined, taxes: taxes.length ? taxes : undefined, xmlNamespaces: xmlNamespaces, issues: this.issues.length ? this.issues : undefined }));
                 return [2 /*return*/, document];
             });
         });
@@ -281,9 +305,7 @@ var UblReader = /** @class */ (function (_super) {
         }
         return Delivery_1.default.create({
             name: (0, helpers_1.strOrUnd)((_b = (_a = node['cac:DeliveryParty']) === null || _a === void 0 ? void 0 : _a['cac:PartyName']) === null || _b === void 0 ? void 0 : _b['cbc:Name']),
-            date: node['cbc:ActualDeliveryDate']
-                ? DateOnly_1.default.create(node['cbc:ActualDeliveryDate'])
-                : undefined,
+            date: this.dateOrIssue(node['cbc:ActualDeliveryDate'], 'cac:Delivery/cbc:ActualDeliveryDate'),
             locationId: (0, helpers_1.nodeToId)((_c = node['cac:DeliveryLocation']) === null || _c === void 0 ? void 0 : _c['cbc:ID']),
             address: this.addressFromXmlNode((_d = node['cac:DeliveryAddress']) !== null && _d !== void 0 ? _d : (_e = node['cac:DeliveryLocation']) === null || _e === void 0 ? void 0 : _e['cac:Address']),
         });
@@ -386,8 +408,8 @@ var UblReader = /** @class */ (function (_super) {
         var periodStart = (_a = node['cac:InvoicePeriod']) === null || _a === void 0 ? void 0 : _a['cbc:StartDate'];
         var periodEnd = (_b = node['cac:InvoicePeriod']) === null || _b === void 0 ? void 0 : _b['cbc:EndDate'];
         return {
-            periodStart: periodStart ? DateOnly_1.default.create(periodStart) : undefined,
-            periodEnd: periodEnd ? DateOnly_1.default.create(periodEnd) : undefined,
+            periodStart: this.dateOrIssue(periodStart, 'cac:InvoicePeriod/cbc:StartDate'),
+            periodEnd: this.dateOrIssue(periodEnd, 'cac:InvoicePeriod/cbc:EndDate'),
         };
     };
     UblReader.prototype.documentLineFromXmlNode = function (node, documentType, taxes) {

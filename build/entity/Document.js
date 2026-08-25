@@ -574,6 +574,16 @@ var Document = /** @class */ (function (_super) {
         enumerable: false,
         configurable: true
     });
+    Object.defineProperty(Document.prototype, "issues", {
+        /**
+         * Get the non-fatal issues encountered while reading the document.
+         */
+        get: function () {
+            return this.props.issues;
+        },
+        enumerable: false,
+        configurable: true
+    });
     Document.prototype.toPrimitive = function () {
         return this.props;
     };

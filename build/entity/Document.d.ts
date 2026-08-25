@@ -303,5 +303,9 @@ export default class Document extends Entity<IDocument, string, DocumentId> {
     set xmlNamespaces(value: {
         [key: string]: string;
     } | undefined);
+    /**
+     * Get the non-fatal issues encountered while reading the document.
+     */
+    get issues(): import("../interface/IDocument").ParseIssue[];
     toPrimitive(): IDocument;
 }

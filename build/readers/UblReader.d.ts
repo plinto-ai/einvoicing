@@ -15,6 +15,8 @@ import Tax from '../entity/Tax';
  * @link https://docs.peppol.eu/poacc/billing/3.0/2024-Q2/syntax/ubl-invoice/tree/
  */
 export default class UblReader extends AbstractReader {
+    private issues;
+    private dateOrIssue;
     read(content: string): Promise<Document>;
     partyFromXmlNode(node: XmlNode): Party | undefined;
     payeeFromXmlNode(node: XmlNode): Payee | undefined;
