@@ -2169,6 +2169,67 @@ describe('UblReader', () => {
     });
   });
 
+  describe('parse issues', () => {
+    // Real-world OIOUBL emitters produce day-first dates (30-07-2026), which
+    // are invalid xsd:date values. The reader must not guess the day/month
+    // order: the field is omitted and the problem recorded on the document,
+    // while everything else still parses.
+    test('records invalid dates as issues and parses the rest', async () => {
+      const result = await ublReader.readFromFile(
+        'tests/files/oioubl-day-first-dates.xml',
+      );
+
+      expect(result.id).toEqual(new DocumentId('TEST-DF-001'));
+      expect(result.currency).toEqual(CurrencyCode.create('DKK'));
+      expect(result.lines).toHaveLength(1);
+      expect(result.periodStart).toEqual(DateOnly.create('2026-06-01'));
+      expect(result.periodEnd).toEqual(DateOnly.create('2026-06-30'));
+
+      expect(result.issueDate).toBeUndefined();
+      expect(result.dueDate).toBeUndefined();
+      expect(result.delivery?.date).toBeUndefined();
+
+      expect(result.issues).toHaveLength(3);
+      expect(result.issues).toEqual(
+        expect.arrayContaining([
+          {
+            code: 'invalid-date',
+            field: 'cbc:IssueDate',
+            raw: '17-06-2026',
+            message: expect.stringContaining('17-06-2026'),
+          },
+          {
+            code: 'invalid-date',
+            field: 'cac:PaymentMeans/cbc:PaymentDueDate',
+            raw: '17-06-2026',
+            message: expect.stringContaining('17-06-2026'),
+          },
+          {
+            code: 'invalid-date',
+            field: 'cac:Delivery/cbc:ActualDeliveryDate',
+            raw: '17-06-2026',
+            message: expect.stringContaining('17-06-2026'),
+          },
+        ]),
+      );
+    });
+
+    test('a fully valid document has no issues', async () => {
+      const result = await ublReader.readFromFile(
+        'tests/files/peppol-base.xml',
+      );
+
+      expect(result.issues).toBeUndefined();
+    });
+
+    test('issues reset between reads on the same reader', async () => {
+      await ublReader.readFromFile('tests/files/oioubl-day-first-dates.xml');
+      const clean = await ublReader.readFromFile('tests/files/peppol-base.xml');
+
+      expect(clean.issues).toBeUndefined();
+    });
+  });
+
   test('periodFromXmlNode', async () => {
     expect(ublReader.periodFromXmlNode({})).toEqual({
       periodStart: undefined,
