@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.UblWriter = exports.AbstractWriter = exports.ValueObject = exports.Entity = exports.EntityId = exports.TaxId = exports.DocumentLineId = exports.DocumentId = exports.PaymentTransfer = exports.PaymentMandate = exports.PaymentCard = exports.Payment = exports.Payee = exports.Party = exports.InvoiceReference = exports.Identifier = exports.DocumentType = exports.Delivery = exports.DateOnly = exports.CurrencyCode = exports.BinaryObject = exports.Attribute = exports.Attachment = exports.AllowanceCharge = exports.Address = exports.Tax = exports.DocumentLine = exports.Document = exports.getRuleset = exports.UblReader = exports.AbstractReader = exports.PeppolRuleset = exports.AbstractRuleset = void 0;
+exports.UblWriter = exports.AbstractWriter = exports.ValueObject = exports.Entity = exports.EntityId = exports.TaxId = exports.DocumentLineId = exports.DocumentId = exports.PaymentTransfer = exports.PaymentMandate = exports.PaymentCard = exports.Payment = exports.Payee = exports.Party = exports.InvoiceReference = exports.Identifier = exports.DocumentType = exports.Delivery = exports.DateOnly = exports.CurrencyCode = exports.BinaryObject = exports.Attribute = exports.Attachment = exports.AllowanceCharge = exports.Address = exports.Tax = exports.DocumentLine = exports.Document = exports.getRuleset = exports.UnsupportedDocumentError = exports.UblReader = exports.AbstractReader = exports.PeppolRuleset = exports.AbstractRuleset = void 0;
 var tslib_1 = require("tslib");
 /**
  * Main entry point for the library, export all necessary classes and functions
@@ -15,6 +15,8 @@ var AbstractRuleset_1 = tslib_1.__importDefault(require("./ruleset/AbstractRules
 exports.AbstractRuleset = AbstractRuleset_1.default;
 var AbstractReader_1 = tslib_1.__importDefault(require("./readers/AbstractReader"));
 exports.AbstractReader = AbstractReader_1.default;
+var UnsupportedDocumentError_1 = tslib_1.__importDefault(require("./error/UnsupportedDocumentError"));
+exports.UnsupportedDocumentError = UnsupportedDocumentError_1.default;
 var UblReader_1 = tslib_1.__importDefault(require("./readers/UblReader"));
 exports.UblReader = UblReader_1.default;
 var rulesets_1 = require("./rulesets");

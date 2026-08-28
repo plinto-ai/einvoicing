@@ -8,6 +8,7 @@
 import PeppolRuleset from './ruleset/PeppolRuleset';
 import AbstractRuleset from './ruleset/AbstractRuleset';
 import AbstractReader from './readers/AbstractReader';
+import UnsupportedDocumentError from './error/UnsupportedDocumentError';
 import UblReader from './readers/UblReader';
 import { getRuleset } from './rulesets';
 import Document from './entity/Document';
@@ -38,4 +39,4 @@ import { EntityId } from './base/EntityId';
 import { ValueObject } from './base/ValueObject';
 import AbstractWriter from './writers/AbstractWriter';
 import UblWriter from './writers/UblWriter';
-export { AbstractRuleset, PeppolRuleset, AbstractReader, UblReader, getRuleset, Document, DocumentLine, Tax, Address, AllowanceCharge, Attachment, Attribute, BinaryObject, CurrencyCode, DateOnly, Delivery, DocumentType, Identifier, InvoiceReference, Party, Payee, Payment, PaymentCard, PaymentMandate, PaymentTransfer, IDocument, DocumentId, IDocumentLine, DocumentLineId, ITax, TaxId, IAddress, IAllowanceCharge, IAttachment, IAttribute, IBinaryObject, IDelivery, IIdentifier, IInvoiceReference, IParty, IPayee, IPayment, IPaymentCard, IPaymentMandate, IPaymentTransfer, EntityId, Entity, ValueObject, AbstractWriter, UblWriter, };
+export { AbstractRuleset, PeppolRuleset, AbstractReader, UblReader, UnsupportedDocumentError, getRuleset, Document, DocumentLine, Tax, Address, AllowanceCharge, Attachment, Attribute, BinaryObject, CurrencyCode, DateOnly, Delivery, DocumentType, Identifier, InvoiceReference, Party, Payee, Payment, PaymentCard, PaymentMandate, PaymentTransfer, IDocument, DocumentId, IDocumentLine, DocumentLineId, ITax, TaxId, IAddress, IAllowanceCharge, IAttachment, IAttribute, IBinaryObject, IDelivery, IIdentifier, IInvoiceReference, IParty, IPayee, IPayment, IPaymentCard, IPaymentMandate, IPaymentTransfer, EntityId, Entity, ValueObject, AbstractWriter, UblWriter, };

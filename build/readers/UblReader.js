@@ -10,6 +10,7 @@ var tslib_1 = require("tslib");
  */
 var fast_xml_parser_1 = require("fast-xml-parser");
 var AbstractReader_1 = tslib_1.__importDefault(require("./AbstractReader"));
+var UnsupportedDocumentError_1 = tslib_1.__importDefault(require("../error/UnsupportedDocumentError"));
 var Document_1 = tslib_1.__importDefault(require("../entity/Document"));
 var index_1 = require("../index");
 var IDocument_1 = require("../interface/IDocument");
@@ -72,7 +73,7 @@ var UblReader = /** @class */ (function (_super) {
     };
     UblReader.prototype.read = function (content) {
         return tslib_1.__awaiter(this, void 0, void 0, function () {
-            var attributeValueProcessor, tagValueProcessor, options, parser, json, rootKeys, invoiceRootKey, creditNoteRootKey, documentType, documentNode, xmlNamespaces, customizationId, ruleset, taxNodes, taxes, dueDate, type, taxPointDate, invoiceReferences, precedingInvoiceReference, attachmentNodes, attachments, lines, charges, document;
+            var attributeValueProcessor, tagValueProcessor, options, parser, json, rootKeys, invoiceRootKey, creditNoteRootKey, documentType, rootKey, documentNode, xmlNamespaces, rootPrefix, rootNamespace, expectedNamespace, customizationId, ruleset, taxNodes, taxes, dueDate, type, taxPointDate, invoiceReferences, precedingInvoiceReference, attachmentNodes, attachments, lines, charges, document;
             var _this = this;
             var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
             return tslib_1.__generator(this, function (_o) {
@@ -112,20 +113,27 @@ var UblReader = /** @class */ (function (_super) {
                 invoiceRootKey = rootKeys.find(function (key) { return key === 'Invoice' || key.endsWith(':Invoice'); });
                 creditNoteRootKey = rootKeys.find(function (key) { return key === 'CreditNote' || key.endsWith(':CreditNote'); });
                 if (!invoiceRootKey && !creditNoteRootKey) {
-                    throw new Error('Unsupported document type: root element is not a UBL Invoice or CreditNote');
+                    throw new UnsupportedDocumentError_1.default('Unsupported document type: root element is not a UBL Invoice or CreditNote');
                 }
                 documentType = invoiceRootKey
                     ? IDocument_1.DocumentTypes.Invoice
                     : IDocument_1.DocumentTypes.CreditNote;
-                documentNode = invoiceRootKey
-                    ? json[invoiceRootKey]
-                    : json[creditNoteRootKey];
+                rootKey = invoiceRootKey !== null && invoiceRootKey !== void 0 ? invoiceRootKey : creditNoteRootKey;
+                documentNode = json[rootKey];
                 xmlNamespaces = Object.keys(documentNode)
                     .filter(function (key) { return key.startsWith('attr_xmlns'); })
                     .reduce(function (acc, key) {
                     acc[key.replace('attr_', '')] = documentNode[key];
                     return acc;
                 }, {});
+                rootPrefix = rootKey.includes(':') ? rootKey.split(':')[0] : null;
+                rootNamespace = xmlNamespaces[rootPrefix ? "xmlns:".concat(rootPrefix) : 'xmlns'];
+                expectedNamespace = invoiceRootKey
+                    ? 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+                    : 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2';
+                if (rootNamespace !== expectedNamespace) {
+                    throw new UnsupportedDocumentError_1.default("Unsupported document type: root element is not in the ".concat(expectedNamespace, " namespace"));
+                }
                 customizationId = documentNode['cbc:CustomizationID'];
                 ruleset = (0, index_1.getRuleset)(customizationId);
                 taxNodes = (0, helpers_1.getArray)(documentNode, [
