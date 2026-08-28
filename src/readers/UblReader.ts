@@ -7,6 +7,7 @@
  */
 import { X2jOptions, XMLParser } from 'fast-xml-parser';
 import AbstractReader from './AbstractReader';
+import UnsupportedDocumentError from '../error/UnsupportedDocumentError';
 import Document from '../entity/Document';
 import { getRuleset } from '../index';
 import { DocumentId, DocumentTypes, ParseIssue } from '../interface/IDocument';
@@ -119,16 +120,15 @@ export default class UblReader extends AbstractReader {
       (key) => key === 'CreditNote' || key.endsWith(':CreditNote'),
     );
     if (!invoiceRootKey && !creditNoteRootKey) {
-      throw new Error(
+      throw new UnsupportedDocumentError(
         'Unsupported document type: root element is not a UBL Invoice or CreditNote',
       );
     }
     const documentType = invoiceRootKey
       ? DocumentTypes.Invoice
       : DocumentTypes.CreditNote;
-    const documentNode = invoiceRootKey
-      ? json[invoiceRootKey]
-      : json[creditNoteRootKey];
+    const rootKey = invoiceRootKey ?? creditNoteRootKey;
+    const documentNode = json[rootKey];
 
     const xmlNamespaces = Object.keys(documentNode)
       .filter((key) => key.startsWith('attr_xmlns'))
@@ -136,6 +136,22 @@ export default class UblReader extends AbstractReader {
         acc[key.replace('attr_', '')] = documentNode[key];
         return acc;
       }, {});
+
+    // The root's local name is shared by other dialects — Danish OIOXML
+    // (UBL 0.7) also roots at <Invoice> — so the name alone does not say this
+    // is a document the mappings below understand. The namespace the root
+    // itself is declared in does.
+    const rootPrefix = rootKey.includes(':') ? rootKey.split(':')[0] : null;
+    const rootNamespace =
+      xmlNamespaces[rootPrefix ? `xmlns:${rootPrefix}` : 'xmlns'];
+    const expectedNamespace = invoiceRootKey
+      ? 'urn:oasis:names:specification:ubl:schema:xsd:Invoice-2'
+      : 'urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2';
+    if (rootNamespace !== expectedNamespace) {
+      throw new UnsupportedDocumentError(
+        `Unsupported document type: root element is not in the ${expectedNamespace} namespace`,
+      );
+    }
 
     // BT-24: Specification identifier
     const customizationId = documentNode['cbc:CustomizationID'];

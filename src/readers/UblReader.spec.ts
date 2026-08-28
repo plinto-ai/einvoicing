@@ -1,4 +1,5 @@
 import UblReader from './UblReader';
+import UnsupportedDocumentError from '../error/UnsupportedDocumentError';
 import {
   DEFAULT_CUSTOMIZATION_ID,
   DEFAULT_PROFILE_ID,
@@ -2164,8 +2165,36 @@ describe('UblReader', () => {
       await expect(
         ublReader.read('<ApplicationResponse></ApplicationResponse>'),
       ).rejects.toThrow(
-        'Unsupported document type: root element is not a UBL Invoice or CreditNote',
+        new UnsupportedDocumentError(
+          'Unsupported document type: root element is not a UBL Invoice or CreditNote',
+        ),
       );
+    });
+
+    // Danish OIOXML (UBL 0.7) also roots at <Invoice>; only the namespace
+    // separates it from a document this reader maps.
+    test('throws for an <Invoice> root outside the UBL 2.x namespace', async () => {
+      await expect(
+        ublReader.read(
+          '<Invoice xmlns="http://rep.oio.dk/ubl/xml/schemas/0p71/pie/"><com:ID xmlns:com="http://rep.oio.dk/ubl/xml/schemas/0p71/common/">1338</com:ID></Invoice>',
+        ),
+      ).rejects.toThrow(UnsupportedDocumentError);
+    });
+
+    // The namespace comes from the parsed root attributes, so a declaration-
+    // shaped string inside another attribute's value cannot stand in for it.
+    test('ignores a namespace declaration spoofed inside an attribute value', async () => {
+      await expect(
+        ublReader.read(
+          '<Invoice marker=\' xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"\' xmlns="http://rep.oio.dk/ubl/xml/schemas/0p71/pie/"/>',
+        ),
+      ).rejects.toThrow(UnsupportedDocumentError);
+    });
+
+    test('throws for a root that declares no namespace', async () => {
+      await expect(
+        ublReader.read('<Invoice><ID>1</ID></Invoice>'),
+      ).rejects.toThrow(UnsupportedDocumentError);
     });
   });
 
