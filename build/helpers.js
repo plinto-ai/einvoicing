@@ -11,6 +11,7 @@ exports.nodeToId = nodeToId;
 exports.nodeToQuantity = nodeToQuantity;
 exports.strOrUnd = strOrUnd;
 exports.numOrUnd = numOrUnd;
+exports.childByLocalName = childByLocalName;
 exports.getArray = getArray;
 exports.formatNumber = formatNumber;
 exports.omitEmpty = omitEmpty;
@@ -78,6 +79,24 @@ function strOrUnd(node) {
  */
 function numOrUnd(node) {
     return strOrUnd(node) ? parseFloat(strOrUnd(node)) : undefined;
+}
+/**
+ * Returns the child element with the given local name, whatever prefix the
+ * document binds its namespace to: `cbc:ID`, `ns2:ID`, or an unprefixed `ID`
+ * under a default namespace.
+ *
+ * @param node xml node
+ * @param localName element name without its namespace prefix
+ */
+function childByLocalName(node, localName) {
+    if (!node || typeof node !== 'object') {
+        return undefined;
+    }
+    var key = Object.keys(node).find(function (key) {
+        return !key.startsWith('attr_') &&
+            (key === localName || key.endsWith(":".concat(localName)));
+    });
+    return key === undefined ? undefined : node[key];
 }
 /**
  * Returns the array of nodes or an empty array if the node is null or undefined.

@@ -73,10 +73,10 @@ var UblReader = /** @class */ (function (_super) {
     };
     UblReader.prototype.read = function (content) {
         return tslib_1.__awaiter(this, void 0, void 0, function () {
-            var attributeValueProcessor, tagValueProcessor, options, parser, json, rootKeys, invoiceRootKey, creditNoteRootKey, documentType, rootKey, documentNode, xmlNamespaces, rootPrefix, rootNamespace, expectedNamespace, customizationId, ruleset, taxNodes, taxes, dueDate, type, taxPointDate, invoiceReferences, precedingInvoiceReference, attachmentNodes, attachments, lines, charges, document;
+            var attributeValueProcessor, tagValueProcessor, options, parser, json, rootKeys, invoiceRootKey, creditNoteRootKey, documentType, rootKey, documentNode, xmlNamespaces, rootPrefix, rootNamespace, expectedNamespace, customizationId, ruleset, taxNodes, taxes, dueDate, type, taxPointDate, orderReference, invoiceReferences, precedingInvoiceReference, attachmentNodes, attachments, lines, charges, document;
             var _this = this;
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
-            return tslib_1.__generator(this, function (_o) {
+            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+            return tslib_1.__generator(this, function (_l) {
                 this.issues = [];
                 attributeValueProcessor = function (name, value) {
                     switch (name) {
@@ -88,11 +88,12 @@ var UblReader = /** @class */ (function (_super) {
                     }
                 };
                 tagValueProcessor = function (tagName, tagValue) {
-                    switch (tagName) {
-                        case 'cbc:ItemClassificationCode':
-                        case 'cbc:CompanyID':
-                        case 'cbc:EndpointID':
-                        case 'cbc:ID': {
+                    switch (tagName.split(':').pop()) {
+                        case 'ItemClassificationCode':
+                        case 'CompanyID':
+                        case 'EndpointID':
+                        case 'ID':
+                        case 'SalesOrderID': {
                             return null;
                         }
                         default:
@@ -155,6 +156,7 @@ var UblReader = /** @class */ (function (_super) {
                 dueDate = (_a = documentNode['cbc:DueDate']) !== null && _a !== void 0 ? _a : (_b = documentNode['cac:PaymentMeans']) === null || _b === void 0 ? void 0 : _b['cbc:PaymentDueDate'];
                 type = (_c = documentNode['cbc:InvoiceTypeCode']) !== null && _c !== void 0 ? _c : documentNode['cbc:CreditNoteTypeCode'];
                 taxPointDate = documentNode['cbc:TaxPointDate'];
+                orderReference = (0, helpers_1.childByLocalName)(documentNode, 'OrderReference');
                 invoiceReferences = (0, helpers_1.getArray)(documentNode, ['cac:BillingReference']);
                 precedingInvoiceReference = invoiceReferences.map(function (reference) {
                     var node = reference['cac:InvoiceDocumentReference'];
@@ -218,13 +220,13 @@ var UblReader = /** @class */ (function (_super) {
                     // BT-12: Contract reference
                     contractReference: (0, helpers_1.nodeToId)((_d = documentNode['cac:ContractDocumentReference']) === null || _d === void 0 ? void 0 : _d['cbc:ID']), 
                     // BT-13: Purchase order reference
-                    purchaseOrderReference: (0, helpers_1.nodeToId)((_e = documentNode['cac:OrderReference']) === null || _e === void 0 ? void 0 : _e['cbc:ID']), 
+                    purchaseOrderReference: (0, helpers_1.nodeToId)((0, helpers_1.childByLocalName)(orderReference, 'ID')), 
                     // BT-17: Originator document reference
-                    originatorDocumentReference: (0, helpers_1.nodeToId)((_f = documentNode['cac:OriginatorDocumentReference']) === null || _f === void 0 ? void 0 : _f['cbc:ID']), 
+                    originatorDocumentReference: (0, helpers_1.nodeToId)((_e = documentNode['cac:OriginatorDocumentReference']) === null || _e === void 0 ? void 0 : _e['cbc:ID']), 
                     // BT-14: Sales order reference
-                    salesOrderReference: (0, helpers_1.strOrUnd)((_g = documentNode['cbc:OrderReference']) === null || _g === void 0 ? void 0 : _g['cbc:SalesOrderID']), 
+                    salesOrderReference: (0, helpers_1.strOrUnd)((0, helpers_1.childByLocalName)(orderReference, 'SalesOrderID')), 
                     // BT-17: Tender or lot reference
-                    tenderOrLotReference: (0, helpers_1.strOrUnd)((_h = documentNode['cbc:OriginatorDocumentReference']) === null || _h === void 0 ? void 0 : _h['cbc:ID']), 
+                    tenderOrLotReference: (0, helpers_1.strOrUnd)((_f = documentNode['cbc:OriginatorDocumentReference']) === null || _f === void 0 ? void 0 : _f['cbc:ID']), 
                     // BT-19: Buyer accounting reference
                     buyerAccountingReference: (0, helpers_1.strOrUnd)(documentNode['cbc:AccountingCost']), 
                     // BT-22: Notes
@@ -238,9 +240,9 @@ var UblReader = /** @class */ (function (_super) {
                         ? precedingInvoiceReference
                         : undefined }, this.periodFromXmlNode(documentNode)), { 
                     // Seller
-                    seller: this.partyFromXmlNode((_j = documentNode['cac:AccountingSupplierParty']) === null || _j === void 0 ? void 0 : _j['cac:Party']), 
+                    seller: this.partyFromXmlNode((_g = documentNode['cac:AccountingSupplierParty']) === null || _g === void 0 ? void 0 : _g['cac:Party']), 
                     // Buyer
-                    buyer: this.partyFromXmlNode((_k = documentNode['cac:AccountingCustomerParty']) === null || _k === void 0 ? void 0 : _k['cac:Party']), 
+                    buyer: this.partyFromXmlNode((_h = documentNode['cac:AccountingCustomerParty']) === null || _h === void 0 ? void 0 : _h['cac:Party']), 
                     // Payee
                     payee: this.payeeFromXmlNode(documentNode['cac:PayeeParty']), 
                     // Delivery
@@ -248,9 +250,9 @@ var UblReader = /** @class */ (function (_super) {
                     // BG-24: Attachment nodes
                     attachments: attachments.length ? attachments : undefined, 
                     // BT-113: Paid amount
-                    paidAmount: (0, helpers_1.numOrUnd)((_l = documentNode['cac:LegalMonetaryTotal']) === null || _l === void 0 ? void 0 : _l['cbc:PrepaidAmount']), 
+                    paidAmount: (0, helpers_1.numOrUnd)((_j = documentNode['cac:LegalMonetaryTotal']) === null || _j === void 0 ? void 0 : _j['cbc:PrepaidAmount']), 
                     // BT-114: Rounding amount
-                    roundingAmount: (0, helpers_1.numOrUnd)((_m = documentNode['cac:LegalMonetaryTotal']) === null || _m === void 0 ? void 0 : _m['cbc:PayableRoundingAmount']), lines: lines.map(function (line) {
+                    roundingAmount: (0, helpers_1.numOrUnd)((_k = documentNode['cac:LegalMonetaryTotal']) === null || _k === void 0 ? void 0 : _k['cbc:PayableRoundingAmount']), lines: lines.map(function (line) {
                         return _this.documentLineFromXmlNode(line, documentType, taxes);
                     }), payment: this.paymentFromXmlNode(documentNode), charges: charges.length ? charges : undefined, taxes: taxes.length ? taxes : undefined, xmlNamespaces: xmlNamespaces, issues: this.issues.length ? this.issues : undefined }));
                 return [2 /*return*/, document];

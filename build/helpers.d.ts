@@ -28,6 +28,15 @@ export declare function strOrUnd(node: XmlNode): string | undefined;
  */
 export declare function numOrUnd(node: XmlNode): number | undefined;
 /**
+ * Returns the child element with the given local name, whatever prefix the
+ * document binds its namespace to: `cbc:ID`, `ns2:ID`, or an unprefixed `ID`
+ * under a default namespace.
+ *
+ * @param node xml node
+ * @param localName element name without its namespace prefix
+ */
+export declare function childByLocalName(node: XmlNode, localName: string): XmlNode;
+/**
  * Returns the array of nodes or an empty array if the node is null or undefined.
  *
  * @param node xml node
