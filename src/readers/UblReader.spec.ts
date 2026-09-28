@@ -1124,6 +1124,7 @@ describe('UblReader', () => {
         }),
         notes: 'sample',
         purchaseOrderReference: Identifier.create({ id: 'AEG012345' }),
+        salesOrderReference: 'CON0095678',
         seller: Party.create({
           contact: Contact.create({
             name: 'Mrs Bouquet',
@@ -2195,6 +2196,97 @@ describe('UblReader', () => {
       await expect(
         ublReader.read('<Invoice><ID>1</ID></Invoice>'),
       ).rejects.toThrow(UnsupportedDocumentError);
+    });
+  });
+
+  describe('order references', () => {
+    const CAC =
+      'urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2';
+    const CBC =
+      'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2';
+    const ublDocument = (root: 'Invoice' | 'CreditNote', body: string) =>
+      `<${root} xmlns="urn:oasis:names:specification:ubl:schema:xsd:${root}-2" xmlns:cac="${CAC}" xmlns:cbc="${CBC}"><cbc:ID>TEST-OR-001</cbc:ID>${body}</${root}>`;
+
+    describe.each(['Invoice', 'CreditNote'] as const)('%s', (root) => {
+      test('reads BT-13 and BT-14 under the cac: and cbc: prefixes', async () => {
+        const result = await ublReader.read(
+          ublDocument(
+            root,
+            '<cac:OrderReference><cbc:ID>PO-1001</cbc:ID><cbc:SalesOrderID>SO-2002</cbc:SalesOrderID></cac:OrderReference>',
+          ),
+        );
+
+        expect(result.purchaseOrderReference).toEqual(
+          Identifier.create({ id: 'PO-1001', scheme: undefined }),
+        );
+        expect(result.salesOrderReference).toBe('SO-2002');
+      });
+
+      // OIOUBL senders declare the basic-components namespace on the element
+      // itself, under a prefix of their own.
+      test('reads BT-13 and BT-14 under other prefixes', async () => {
+        const result = await ublReader.read(
+          ublDocument(
+            root,
+            `<agg:OrderReference xmlns:agg="${CAC}"><ns2:ID xmlns:ns2="${CBC}">PO-1001</ns2:ID><ns2:SalesOrderID xmlns:ns2="${CBC}">SO-2002</ns2:SalesOrderID></agg:OrderReference>`,
+          ),
+        );
+
+        expect(result.purchaseOrderReference?.id).toBe('PO-1001');
+        expect(result.salesOrderReference).toBe('SO-2002');
+      });
+
+      test('reads BT-13 and BT-14 under a default namespace', async () => {
+        const result = await ublReader.read(
+          ublDocument(
+            root,
+            `<OrderReference xmlns="${CAC}"><ID xmlns="${CBC}">PO-1001</ID><SalesOrderID xmlns="${CBC}">SO-2002</SalesOrderID></OrderReference>`,
+          ),
+        );
+
+        expect(result.purchaseOrderReference?.id).toBe('PO-1001');
+        expect(result.salesOrderReference).toBe('SO-2002');
+      });
+
+      test('keeps all-digit order numbers as written', async () => {
+        const result = await ublReader.read(
+          ublDocument(
+            root,
+            `<cac:OrderReference><ns2:ID xmlns:ns2="${CBC}">0042</ns2:ID><cbc:SalesOrderID>007</cbc:SalesOrderID></cac:OrderReference>`,
+          ),
+        );
+
+        expect(result.purchaseOrderReference?.id).toBe('0042');
+        expect(result.salesOrderReference).toBe('007');
+      });
+
+      test('reads blank values as absent', async () => {
+        const result = await ublReader.read(
+          ublDocument(
+            root,
+            '<cac:OrderReference><cbc:ID>   </cbc:ID><cbc:SalesOrderID></cbc:SalesOrderID></cac:OrderReference>',
+          ),
+        );
+
+        expect(result.purchaseOrderReference).toBeUndefined();
+        expect(result.salesOrderReference).toBeUndefined();
+      });
+
+      test('reads nothing when the document states no order reference', async () => {
+        const result = await ublReader.read(ublDocument(root, ''));
+
+        expect(result.purchaseOrderReference).toBeUndefined();
+        expect(result.salesOrderReference).toBeUndefined();
+      });
+    });
+
+    test('oioubl-day-first-dates.xml', async () => {
+      const result = await ublReader.readFromFile(
+        'tests/files/oioubl-day-first-dates.xml',
+      );
+
+      expect(result.purchaseOrderReference?.id).toBe('W5F1-340');
+      expect(result.salesOrderReference).toBe('4');
     });
   });
 
