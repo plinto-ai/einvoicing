@@ -29,6 +29,7 @@ import {
   strOrUnd,
   numOrUnd,
   getArray,
+  childByLocalName,
   XmlNode,
   nodeToId,
   nodeToQuantity,
@@ -87,12 +88,15 @@ export default class UblReader extends AbstractReader {
       }
     };
 
+    // Identifiers stay text as written (a leading zero is part of the value),
+    // under whatever prefix the element is bound to.
     const tagValueProcessor = (tagName: string, tagValue: string) => {
-      switch (tagName) {
-        case 'cbc:ItemClassificationCode':
-        case 'cbc:CompanyID':
-        case 'cbc:EndpointID':
-        case 'cbc:ID': {
+      switch (tagName.split(':').pop()) {
+        case 'ItemClassificationCode':
+        case 'CompanyID':
+        case 'EndpointID':
+        case 'ID':
+        case 'SalesOrderID': {
           return null;
         }
         default:
@@ -195,6 +199,11 @@ export default class UblReader extends AbstractReader {
     // BT-7: Tax point date
     const taxPointDate = documentNode['cbc:TaxPointDate'];
 
+    // BT-13 and BT-14 are matched by local name: senders bind the component
+    // namespaces to prefixes other than cac: and cbc:, or declare them as the
+    // default namespace on the element itself.
+    const orderReference = childByLocalName(documentNode, 'OrderReference');
+
     // BG-3: Preceding invoice references
     const invoiceReferences = getArray(documentNode, ['cac:BillingReference']);
     const precedingInvoiceReference = invoiceReferences.map(
@@ -291,9 +300,7 @@ export default class UblReader extends AbstractReader {
       ),
 
       // BT-13: Purchase order reference
-      purchaseOrderReference: nodeToId(
-        documentNode['cac:OrderReference']?.['cbc:ID'],
-      ),
+      purchaseOrderReference: nodeToId(childByLocalName(orderReference, 'ID')),
 
       // BT-17: Originator document reference
       originatorDocumentReference: nodeToId(
@@ -302,7 +309,7 @@ export default class UblReader extends AbstractReader {
 
       // BT-14: Sales order reference
       salesOrderReference: strOrUnd(
-        documentNode['cbc:OrderReference']?.['cbc:SalesOrderID'],
+        childByLocalName(orderReference, 'SalesOrderID'),
       ),
 
       // BT-17: Tender or lot reference

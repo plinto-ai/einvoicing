@@ -1,4 +1,5 @@
 import {
+  childByLocalName,
   formatNumber,
   getArray,
   numOrUnd,
@@ -28,6 +29,18 @@ describe('helpers', () => {
     expect(numOrUnd(undefined)).toBe(undefined);
     expect(numOrUnd({ '#text': '1' })).toBe(1);
     expect(numOrUnd({})).toBe(undefined);
+  });
+
+  test('childByLocalName', () => {
+    expect(childByLocalName(undefined, 'ID')).toBe(undefined);
+    expect(childByLocalName('text', 'ID')).toBe(undefined);
+    expect(childByLocalName({ 'cbc:ID': '1' }, 'ID')).toBe('1');
+    expect(childByLocalName({ 'ns2:ID': '1' }, 'ID')).toBe('1');
+    expect(childByLocalName({ ID: '1' }, 'ID')).toBe('1');
+    expect(childByLocalName({ 'cbc:UUID': '1' }, 'ID')).toBe(undefined);
+    expect(childByLocalName({ 'attr_xmlns:ID': 'urn:x' }, 'ID')).toBe(
+      undefined,
+    );
   });
 
   test('getArray', () => {
